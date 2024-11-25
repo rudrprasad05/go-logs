@@ -29,5 +29,6 @@ func main() {
 	loggedHandler := logs.LoggingMiddleware(logger, router)
 
 	// Start the HTTP server
+	log.Println("Server running on port 8080...")
 	http.ListenAndServe(":8080", loggedHandler)
 }

@@ -30,6 +30,12 @@ func NewLogger() (*Logger, error) {
 		return nil, fmt.Errorf("failed to create log directory: %w", err)
 	}
 
+	//git
+	gitErr := handleGitIgnoreCreation();
+	if gitErr != nil{
+		return nil, fmt.Errorf("failed to create or open gitignore %w", gitErr)
+	}
+
 	// Generate the log filename based on the current date
 	logFilename := filepath.Join(logDir, time.Now().Format("02-01-06.log"))
 	logFile, err := os.OpenFile(logFilename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
@@ -109,4 +115,45 @@ func getIPAddress(r *http.Request) string {
 	}
 
 	return ip
+}
+
+func handleGitIgnoreCreation() error{
+// gitignore
+	gitignorePath := ".gitignore"
+	if _, err := os.Stat(gitignorePath); os.IsNotExist(err) {
+		// .gitignore does not exist, create a new one
+		file, err := os.Create(gitignorePath)
+		if err != nil {
+			return fmt.Errorf("failed to create .gitignore file: %w", err)
+		}
+		defer file.Close()
+
+		// Add /logs and the comment to the .gitignore file
+		_, err = file.WriteString("# github/rudrprasad05/go-logs\n")
+		if err != nil {
+			return fmt.Errorf("failed to write to .gitignore: %w", err)
+		}
+		_, err = file.WriteString("/logs/*.log\n")
+		if err != nil {
+			return fmt.Errorf("failed to write to .gitignore: %w", err)
+		}
+	} else {
+		// .gitignore exists, just append /logs
+		file, err := os.OpenFile(gitignorePath, os.O_APPEND|os.O_WRONLY, 0644)
+		if err != nil {
+			return fmt.Errorf("failed to open .gitignore for appending: %w", err)
+		}
+		defer file.Close()
+
+		// Append /logs and the comment
+		_, err = file.WriteString("\n# github/rudrprasad05/go-logs\n")
+		if err != nil {
+			return fmt.Errorf("failed to append to .gitignore: %w", err)
+		}
+		_, err = file.WriteString("/logs\n")
+		if err != nil {
+			return fmt.Errorf("failed to append to .gitignore: %w", err)
+		}
+	}
+	return nil
 }
