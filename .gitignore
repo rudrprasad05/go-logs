@@ -1,3 +1,4 @@
 .DS_Store
+/tmp
 # github/rudrprasad05/go-logs
 /logs/*.log

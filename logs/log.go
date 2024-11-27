@@ -1,6 +1,7 @@
 package logs
 
 import (
+	"bufio"
 	"fmt"
 	"net/http"
 	"os"
@@ -31,7 +32,7 @@ func NewLogger() (*Logger, error) {
 	}
 
 	//git
-	gitErr := handleGitIgnoreCreation();
+	gitErr := addGitIgnoreEntries();
 	if gitErr != nil{
 		return nil, fmt.Errorf("failed to create or open gitignore %w", gitErr)
 	}
@@ -117,43 +118,58 @@ func getIPAddress(r *http.Request) string {
 	return ip
 }
 
-func handleGitIgnoreCreation() error{
-// gitignore
-	gitignorePath := ".gitignore"
-	if _, err := os.Stat(gitignorePath); os.IsNotExist(err) {
-		// .gitignore does not exist, create a new one
-		file, err := os.Create(gitignorePath)
-		if err != nil {
-			return fmt.Errorf("failed to create .gitignore file: %w", err)
-		}
-		defer file.Close()
+func addGitIgnoreEntries() error {
+	// Lines to add
+	linesToAdd := []string{
+		"# github/rudrprasad05/go-logs",
+		"/logs/*.log",
+	}
 
-		// Add /logs and the comment to the .gitignore file
-		_, err = file.WriteString("# github/rudrprasad05/go-logs\n")
-		if err != nil {
-			return fmt.Errorf("failed to write to .gitignore: %w", err)
-		}
-		_, err = file.WriteString("/logs/*.log\n")
-		if err != nil {
-			return fmt.Errorf("failed to write to .gitignore: %w", err)
-		}
-	} else {
-		// .gitignore exists, just append /logs
-		file, err := os.OpenFile(gitignorePath, os.O_APPEND|os.O_WRONLY, 0644)
-		if err != nil {
-			return fmt.Errorf("failed to open .gitignore for appending: %w", err)
-		}
-		defer file.Close()
+	// Open the file for reading
+	filePath := ".gitignore"
+	file, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to open .gitignore: %w", err)
+	}
+	defer file.Close()
 
-		// Append /logs and the comment
-		_, err = file.WriteString("\n# github/rudrprasad05/go-logs\n")
-		if err != nil {
-			return fmt.Errorf("failed to append to .gitignore: %w", err)
-		}
-		_, err = file.WriteString("/logs\n")
-		if err != nil {
-			return fmt.Errorf("failed to append to .gitignore: %w", err)
+	// Read existing lines
+	existingLines := make(map[string]struct{})
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		existingLines[scanner.Text()] = struct{}{}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("failed to read .gitignore: %w", err)
+	}
+
+	// Filter lines that need to be added
+	var linesToWrite []string
+	for _, line := range linesToAdd {
+		if _, exists := existingLines[line]; !exists {
+			linesToWrite = append(linesToWrite, line)
 		}
 	}
+
+	// If no new lines to add, return early
+	if len(linesToWrite) == 0 {
+		return nil
+	}
+
+	// Reopen the file for appending
+	file, err = os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to reopen .gitignore: %w", err)
+	}
+	defer file.Close()
+
+	// Write new lines to the file
+	for _, line := range linesToWrite {
+		if _, err := file.WriteString(line + "\n"); err != nil {
+			return fmt.Errorf("failed to write to .gitignore: %w", err)
+		}
+	}
+
 	return nil
 }
